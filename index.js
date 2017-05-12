@@ -82,6 +82,7 @@ app.post('/sms', function (req, res) {
     }, function (e, m) { })
     twiml.message('Transaction Sent')
   } else {
+    state[req.body.From] = false
     twiml.message('Invalid Function')
   }
   res.writeHead(200, {'Content-Type': 'text/xml'})
