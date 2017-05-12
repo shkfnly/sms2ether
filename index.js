@@ -9,6 +9,8 @@ var transactionState = {}
 
 var app = express()
 var web3 = new Web3()
+var accountSid = 'AC984b5878a42f60b51fa837652f683686'
+var authToken = '535e2fd134fdbf5ac36b6a7044481871'
 var SALT = 'FUCKKKKKKYESSSSS'
 var ETHEREUM_CLIENT = new Web3(new Web3.providers.HttpProvider('http://localhost:8545'))
 
@@ -23,7 +25,7 @@ app.post('/sms', function (req, res) {
   var twilio = require('twilio')
   var twiml = new twilio.twiml.MessagingResponse()
 
-  if (req.body.Body === 'register') {
+  if (req.body.Body.toLowerCase() === 'register') {
     state[req.body.From] = 'registerRequest'
     twiml.message('Please Submit Password')
   }
@@ -36,14 +38,14 @@ app.post('/sms', function (req, res) {
     twiml.message(`Your ethereum address is ${ethaddress}`)
   }
 
-  else if (req.body.Body === 'balance') {
+  else if (req.body.Body.toLowerCase() === 'balance') {
     let registryContract = ETHEREUM_CLIENT.eth.contract(registryABI).at(registryAddress)
     let publicAddress = registryContract.phone2address(req.body.From.toString())
     let balance = web3.fromWei(ETHEREUM_CLIENT.eth.getBalance(publicAddress), 'ether')
     twiml.message(`${balance} Eth`)
   }
 
-  else if (req.body.Body === 'send') {
+  else if (req.body.Body.toLowerCase() === 'send') {
     state[req.body.From] = 'sendRequest'
     twiml.message('Enter Destination and Amount as "destination, amount".')
   }
@@ -60,6 +62,7 @@ app.post('/sms', function (req, res) {
     let value = web3.toWei(transactionState[req.body.From][1])
     var senderAddress = '0x' + ethUtil.privateToAddress(privateKey).toString('hex')
     let receiverAddress = registryContract.phone2address(transactionState[req.body.From][0].toString())
+    var client = require('twilio')(accountSid, authToken)
     var rawTx = {
       nonce: ETHEREUM_CLIENT.toHex(ETHEREUM_CLIENT.eth.getTransactionCount(receiverAddress)),
       from: senderAddress,
@@ -72,6 +75,11 @@ app.post('/sms', function (req, res) {
     tx.sign(new Buffer(privateKey.substring(2), 'hex'))
     var txData = tx.serialize().toString('hex')
     ETHEREUM_CLIENT.eth.sendRawTransaction(`0x${txData}`)
+    client.messages.create({
+      to: transactionState[req.body.From][0],
+      from: '+12016902660',
+      body: `${req.body.From} sent you ${transactionState[req.body.From][1]} Eth`
+    }, function (e, m) { })
     twiml.message('Transaction Sent')
   } else {
     twiml.message('Hey')
