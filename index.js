@@ -13,7 +13,7 @@ var SALT = 'FUCKKKKKKYESSSSS'
 var ETHEREUM_CLIENT = new Web3(new Web3.providers.HttpProvider('http://localhost:8545'))
 
 var registryABI = [{"constant":false,"inputs":[{"name":"_phoneNumber","type":"bytes32"},{"name":"_address","type":"address"}],"name":"registerAddress","outputs":[],"payable":false,"type":"function"},{"constant":true,"inputs":[{"name":"","type":"bytes32"}],"name":"phone2address","outputs":[{"name":"","type":"address"}],"payable":false,"type":"function"},{"anonymous":false,"inputs":[{"indexed":false,"name":"_address","type":"address"}],"name":"AddressAdded","type":"event"}]
-var registryAddress = "0xfd26fde75d698bdbfcefcac97bcac1f037121f26"
+var registryAddress = '0xc75b36c58182702259aabdfc0ae3b3a76f596b10'
 let registryContract = ETHEREUM_CLIENT.eth.contract(registryABI).at(registryAddress)
 app.set('port', (process.env.PORT || 3300))
 
@@ -22,28 +22,28 @@ app.use(bodyParser.urlencoded({extended: false}))
 app.post('/sms', function (req, res) {
   var twilio = require('twilio')
   var twiml = new twilio.twiml.MessagingResponse()
-  var sessionState = state[req.body.From]
 
-  if (req.body.Body === 'register') {
-    sessionState = 'registerRequest'
+  if (req.body.Body === '/register') {
+    state[req.body.From] = 'registerRequest'
     twiml.message('Please Submit Password')
   }
 
-  else if (sessionState === 'registerRequest') {
-    sessionState = false
+  else if (state[req.body.From] === 'registerRequest') {
+    state[req.body.From] = false
     var ethaddress = '0x' + ethUtil.privateToAddress(web3.sha3(SALT + req.body.From + req.body.Body)).toString('hex')
     var phonenumber = req.body.From.toString()
     registryContract.registerAddress(phonenumber, ethaddress, {from: ETHEREUM_CLIENT.eth.accounts[0]})
     twiml.message(`Your ethereum address is ${ethaddress}`)
   }
 
-  else if (req.body.Body === 'balance') {
+  else if (req.body.Body === '/balance') {
     let registryContract = ETHEREUM_CLIENT.eth.contract(registryABI).at(registryAddress)
     let publicAddress = registryContract.phone2address(req.body.From.toString())
-    twiml.message(web3.fromWei(ETHEREUM_CLIENT.eth.getBalance(publicAddress), 'ether'))
+    let balance = web3.fromWei(ETHEREUM_CLIENT.eth.getBalance(publicAddress), 'ether')
+    twiml.message(`${balance} Eth`)
   }
 
-  else if (req.body.Body === 'send') {
+  else if (req.body.Body === '/send') {
     state[req.body.From] = 'sendRequest'
     twiml.message('Enter Destination and Amount as "destination, amount".')
   }
