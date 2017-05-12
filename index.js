@@ -23,7 +23,7 @@ app.post('/sms', function (req, res) {
   var twilio = require('twilio')
   var twiml = new twilio.twiml.MessagingResponse()
 
-  if (req.body.Body === '/register') {
+  if (req.body.Body === 'register') {
     state[req.body.From] = 'registerRequest'
     twiml.message('Please Submit Password')
   }
@@ -36,14 +36,14 @@ app.post('/sms', function (req, res) {
     twiml.message(`Your ethereum address is ${ethaddress}`)
   }
 
-  else if (req.body.Body === '/balance') {
+  else if (req.body.Body === 'balance') {
     let registryContract = ETHEREUM_CLIENT.eth.contract(registryABI).at(registryAddress)
     let publicAddress = registryContract.phone2address(req.body.From.toString())
     let balance = web3.fromWei(ETHEREUM_CLIENT.eth.getBalance(publicAddress), 'ether')
     twiml.message(`${balance} Eth`)
   }
 
-  else if (req.body.Body === '/send') {
+  else if (req.body.Body === 'send') {
     state[req.body.From] = 'sendRequest'
     twiml.message('Enter Destination and Amount as "destination, amount".')
   }
