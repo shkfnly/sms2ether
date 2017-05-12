@@ -26,6 +26,7 @@ app.post('/sms', function (req, res) {
   var twiml = new twilio.twiml.MessagingResponse()
 
   if (req.body.Body.trim().toLowerCase() === 'register') {
+    console.log('registry pending')
     state[req.body.From] = 'registerRequest'
     twiml.message('Please Submit Password')
   }
