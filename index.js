@@ -15,7 +15,7 @@ var SALT = 'FUCKKKKKKYESSSSS'
 var ETHEREUM_CLIENT = new Web3(new Web3.providers.HttpProvider('http://localhost:8545'))
 
 var registryABI = [{"constant":false,"inputs":[{"name":"_phoneNumber","type":"bytes32"},{"name":"_address","type":"address"}],"name":"registerAddress","outputs":[],"payable":false,"type":"function"},{"constant":true,"inputs":[{"name":"","type":"bytes32"}],"name":"phone2address","outputs":[{"name":"","type":"address"}],"payable":false,"type":"function"},{"anonymous":false,"inputs":[{"indexed":false,"name":"_address","type":"address"}],"name":"AddressAdded","type":"event"}]
-var registryAddress = '0xc75b36c58182702259aabdfc0ae3b3a76f596b10'
+var registryAddress = '0x62d69f6867a0a084c6d313943dc22023bc263691'
 let registryContract = ETHEREUM_CLIENT.eth.contract(registryABI).at(registryAddress)
 app.set('port', (process.env.PORT || 3300))
 
@@ -25,10 +25,13 @@ app.post('/sms', function (req, res) {
   var twilio = require('twilio')
   var twiml = new twilio.twiml.MessagingResponse()
 
+  // Password verification should likely be 2 steps
   if (req.body.Body.trim().toLowerCase() === 'register') {
-    console.log('registry pending')
     state[req.body.From] = 'registerRequest'
-    twiml.message('Please Submit Password')
+    twiml.message(
+      `Welcome to sms2ether. This service will connect your mobile number to an ethereum address.
+       Please send the account password you desire`
+    )
   }
 
   else if (state[req.body.From] === 'registerRequest') {
@@ -36,27 +39,47 @@ app.post('/sms', function (req, res) {
     var ethaddress = '0x' + ethUtil.privateToAddress(web3.sha3(SALT + req.body.From + req.body.Body)).toString('hex')
     var phonenumber = req.body.From.toString()
     registryContract.registerAddress(phonenumber, ethaddress, {from: ETHEREUM_CLIENT.eth.accounts[0]})
-    twiml.message(`Your ethereum address is ${ethaddress}`)
+    twiml.message(
+      `Congratulations registration was successful. Your ethereum address is ${ethaddress}.
+       If you ever need to access this address just send the command /address.
+      `
+    )
+  }
+
+  else if (req.body.Body.trim().toLowerCase() === '/address') {
+    let ethaddress = registryContract.phone2address(req.body.From.toString())
+    twiml.message(
+      `Your ethereum address is ${ethaddress}`
+    )
   }
 
   else if (req.body.Body.trim().toLowerCase() === 'balance') {
     let registryContract = ETHEREUM_CLIENT.eth.contract(registryABI).at(registryAddress)
     let publicAddress = registryContract.phone2address(req.body.From.toString())
     let balance = web3.fromWei(ETHEREUM_CLIENT.eth.getBalance(publicAddress), 'ether')
-    twiml.message(`${balance} Eth`)
+    // Add Price information in local Currency
+    twiml.message(`Your current balance is ${balance} Eth.`)
   }
 
   else if (req.body.Body.trim().toLowerCase() === 'send') {
     state[req.body.From] = 'sendRequest'
-    twiml.message('Enter Destination and Amount as "destination, amount".')
+    twiml.message(
+      `Please send the destination phone number and theamount you wish to send,
+       in the following format (destination, amount)`)
   }
 
   else if (state[req.body.From] === 'sendRequest') {
     state[req.body.From] = 'sendConfirm'
     let values = req.body.Body.split(', ')
     transactionState[req.body.From] = values
-    twiml.message('Please enter your password')
+    // Add price information in Local currency
+    twiml.message(
+      `You are sending ${values[1]} Ether to ${values[0]}. Please enter your password
+       to continue.
+      `)
   }
+  // Add invalid account check
+  // Add invalid balance check
   else if (state[req.body.From] === 'sendConfirm') {
     state[req.body.From] = false
     let privateKey = web3.sha3(SALT + req.body.From + req.body.Body)
